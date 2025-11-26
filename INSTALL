@@ -3,12 +3,12 @@ post_install() {
 
 	if type update-alternatives 2>/dev/null >&1; then
 	    # Remove previous link if it doesn't use update-alternatives
-	    if [ -L '/usr/bin/02engine' -a -e '/usr/bin/02engine' -a "`readlink '/usr/bin/02engine'`" != '/etc/alternatives/02engine' ]; then
-	        rm -f '/usr/bin/02engine'
+	    if [ -L '/usr/bin/02engine-bin' -a -e '/usr/bin/02engine-bin' -a "`readlink '/usr/bin/02engine-bin'`" != '/etc/alternatives/02engine-bin' ]; then
+	        rm -f '/usr/bin/02engine-bin'
 	    fi
-	    update-alternatives --install '/usr/bin/02engine' '02engine' '/opt/02Engine/02engine' 100 || ln -sf '/opt/02Engine/02engine' '/usr/bin/02engine'
+	    update-alternatives --install '/usr/bin/02engine-bin' '02engine-bin' '/opt/02Engine/02engine-bin' 100 || ln -sf '/opt/02Engine/02engine-bin' '/usr/bin/02engine-bin'
 	else
-	    ln -sf '/opt/02Engine/02engine' '/usr/bin/02engine'
+	    ln -sf '/opt/02Engine/02engine-bin' '/usr/bin/02engine-bin'
 	fi
 
 	# Check if user namespaces are supported by the kernel and working with a quick test:
@@ -39,7 +39,7 @@ post_install() {
 	# https://askubuntu.com/questions/1517272/writing-a-backwards-compatible-apparmor-profile
 	if apparmor_status --enabled > /dev/null 2>&1; then
 	  APPARMOR_PROFILE_SOURCE='/opt/02Engine/resources/apparmor-profile'
-	  APPARMOR_PROFILE_TARGET='/etc/apparmor.d/02engine'
+	  APPARMOR_PROFILE_TARGET='/etc/apparmor.d/02engine-bin'
 	  if apparmor_parser --skip-kernel-load --debug "$APPARMOR_PROFILE_SOURCE" > /dev/null 2>&1; then
 	    cp -f "$APPARMOR_PROFILE_SOURCE" "$APPARMOR_PROFILE_TARGET"
 
@@ -68,12 +68,12 @@ post_remove() {
 
 	# Delete the link to the binary
 	if type update-alternatives >/dev/null 2>&1; then
-	    update-alternatives --remove '02engine' '/usr/bin/02engine'
+	    update-alternatives --remove '02engine-bin' '/usr/bin/02engine-bin'
 	else
-	    rm -f '/usr/bin/02engine'
+	    rm -f '/usr/bin/02engine-bin'
 	fi
 
-	APPARMOR_PROFILE_DEST='/etc/apparmor.d/02engine'
+	APPARMOR_PROFILE_DEST='/etc/apparmor.d/02engine-bin'
 
 	# Remove apparmor profile.
 	if [ -f "$APPARMOR_PROFILE_DEST" ]; then
