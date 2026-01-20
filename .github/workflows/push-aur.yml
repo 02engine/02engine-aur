@@ -1,8 +1,8 @@
-name: Receive Hello from A
+name: Get Tag from desktop and Push to Aur
 
 on:
   repository_dispatch:
-    types: [hello-event]          # 必须匹配 A 发的事件类型
+    types: [updata-aur]          # 必须匹配 A 发的事件类型
 
 jobs:
   print-hello:
