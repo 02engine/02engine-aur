@@ -1,0 +1,13 @@
+on:
+  repository_dispatch:
+    types: [sync-version]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show received payload
+        run: |
+          echo "Full payload: ${{ toJSON(github.event.client_payload) }}"
+          echo "Greeting  : ${{ github.event.client_payload.greeting }}"   # 输出 "hello"
+          echo "Version   : ${{ github.event.client_payload.version }}"
