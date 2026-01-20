@@ -1,13 +1,16 @@
+name: Receive Hello from A
+
 on:
   repository_dispatch:
-    types: [sync-version]
+    types: [hello-event]          # 必须匹配 A 发的事件类型
 
 jobs:
-  update:
+  print-hello:
     runs-on: ubuntu-latest
     steps:
-      - name: Show received payload
+      - name: Print the received hello message
         run: |
-          echo "Full payload: ${{ toJSON(github.event.client_payload) }}"
-          echo "Greeting  : ${{ github.event.client_payload.greeting }}"   # 输出 "hello"
-          echo "Version   : ${{ github.event.client_payload.version }}"
+          echo "Received dispatch event!"
+          echo "Message from A: ${{ github.event.client_payload.message }}"
+          echo "Full payload:"
+          echo "${{ toJSON(github.event.client_payload) }}"
