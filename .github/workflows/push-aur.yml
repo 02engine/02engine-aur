@@ -41,26 +41,42 @@ jobs:
           # Debug: 显示更新后的行
           grep -E "^(pkgver|fullver)=" PKGBUILD || true
 
-      - name: Generate .SRCINFO (as non-root user)
+      - name: Generate .SRCINFO
         run: |
+          set -euo pipefail
+
+          echo "当前工作目录：$(pwd)"
+          echo "PWD 变量：${PWD}"
+
+          # 先拉镜像（确保最新）
           docker pull archlinux/archlinux:latest
 
-          # 在容器内创建一个普通用户（比如 builder），并用它运行 makepkg
+          # 打印即将执行的命令，便于 debug
+          echo "执行 docker run 命令..."
+          echo "挂载路径：$(pwd):/build"
+
           docker run --rm \
-            -v "${PWD}":"/build" \
-            -w "/build" \
-            --user "$(id -u):$(id -g)" \   # ← 关键：用主机当前用户 UID/GID 运行，避免 root
+            -v "$(pwd)":/build \
+            -w /build \
+            --user "$(id -u):$(id -g)" \
             archlinux/archlinux:latest \
-            /bin/bash -c "
+            bash -c '
               pacman -Syu --noconfirm &&
               pacman -S --noconfirm base-devel git fakeroot &&
               makepkg --printsrcinfo > .SRCINFO
-            "
+            '
 
-          # 检查是否生成成功
-          ls -l .SRCINFO || { echo "Error: .SRCINFO not generated"; exit 1; }
-          head -n 15 .SRCINFO  # 打印前几行确认内容
+          # 检查生成结果
+          if [ ! -f .SRCINFO ]; then
+            echo "错误：.SRCINFO 文件没有生成！"
+            ls -la
+            exit 1
+          fi
 
+          echo "生成成功，以下是 .SRCINFO 前15行："
+          ls -l .SRCINFO
+          head -n 15 .SRCINFO
+          
       - name: Show Files (debug)
         run: |
           ls -la
