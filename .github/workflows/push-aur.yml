@@ -8,7 +8,8 @@ jobs:
   push-to-aur:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -17,75 +18,63 @@ jobs:
           tag="${{ github.event.client_payload.tag }}"
 
           if [[ -z "$tag" ]]; then
-            echo "Error: No tag provided in dispatch payload"
+            echo "错误：dispatch 事件中没有提供 tag"
             exit 1
           fi
 
           fullver="${tag#v}"
 
           if [[ "$fullver" != *-* ]]; then
-            echo "Error: Tag '$tag' does not contain a commit hash suffix"
-            echo "Expected format: vX.Y.Z-xxxxxxxx"
+            echo "错误：tag '$tag' 缺少 commit hash 后缀"
+            echo "预期格式：vX.Y.Z-xxxxxxxx"
             exit 1
           fi
 
           pkgver="${fullver%%-*}"
 
-          echo "Original tag:    $tag"
-          echo "fullver:         $fullver"
-          echo "pkgver:          $pkgver"
+          echo "原始 tag:    $tag"
+          echo "fullver:      $fullver"
+          echo "pkgver:       $pkgver"
 
           sed -i "s|^pkgver=.*|pkgver=$pkgver|" PKGBUILD
           sed -i "s|^fullver=.*|fullver=$fullver|" PKGBUILD
 
-          # Debug: 显示更新后的行
           grep -E "^(pkgver|fullver)=" PKGBUILD || true
 
-      - name: Generate .SRCINFO
+      - name: Generate .SRCINFO in Arch container
         run: |
           set -euo pipefail
 
-          echo "当前工作目录：$(pwd)"
-          echo "PWD 变量：${PWD}"
+          echo "当前目录：$(pwd)"
+          ls -la
 
-          # 先拉镜像（确保最新）
-          docker pull archlinux/archlinux:latest
-
-          # 打印即将执行的命令，便于 debug
-          echo "执行 docker run 命令..."
-          echo "挂载路径：$(pwd):/build"
+          docker pull archlinux:base-devel
 
           docker run --rm \
             -v "$(pwd)":/build \
             -w /build \
-            --user "$(id -u):$(id -g)" \
-            archlinux/archlinux:latest \
+            archlinux:base-devel \
             bash -c '
               pacman -Syu --noconfirm &&
-              pacman -S --noconfirm base-devel git fakeroot &&
-              makepkg --printsrcinfo > .SRCINFO
+              pacman -S --noconfirm git base-devel fakeroot sudo &&
+              useradd -m -s /bin/bash builduser &&
+              echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/builduser &&
+              chown -R builduser:builduser /build &&
+              su - builduser -c "makepkg --printsrcinfo > .SRCINFO"
             '
 
-          # 检查生成结果
           if [ ! -f .SRCINFO ]; then
-            echo "错误：.SRCINFO 文件没有生成！"
+            echo "错误：.SRCINFO 未生成！"
             ls -la
             exit 1
           fi
 
-          echo "生成成功，以下是 .SRCINFO 前15行："
+          echo "生成成功："
           ls -l .SRCINFO
-          head -n 15 .SRCINFO
-          
-      - name: Show Files (debug)
-        run: |
-          ls -la
-          echo "Current user: $(whoami)"
-          echo "Current dir: $(pwd)"
+          head -n 20 .SRCINFO
 
-      # 取消注释后即可正式推送 AUR
       # - name: Publish to AUR
-      #   uses: KSXGitHub/github-actions-deploy-aur@master
+      #   uses: KSXGitHub/github-actions-deploy-aur@master  # 或指定版本如 @v2.6.0
       #   with:
       #     pkgname: 02engine-bin
       #     pkgbuild: ./PKGBUILD
@@ -96,3 +85,5 @@ jobs:
       #     ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
       #     commit_message: Update to ${{ github.event.client_payload.tag }}
       #     ssh_keyscan_types: rsa,ecdsa,ed25519
+      #     allow_empty_commits: false
+      #     # test: true 
