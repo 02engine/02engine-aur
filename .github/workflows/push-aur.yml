@@ -57,14 +57,12 @@ jobs:
             bash -c '
               echo "容器内 /build 目录内容："
               ls -la /build  # 确认挂载成功
-
               pacman -Syu --noconfirm &&
               pacman -S --noconfirm git base-devel fakeroot sudo &&
               useradd -m -s /bin/bash builduser &&
               echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/builduser &&
               chown -R builduser:builduser /build &&
-              cd /build &&  # ← 关键：先 cd 到 /build
-              su - builduser -c "makepkg --printsrcinfo > .SRCINFO"
+              su - builduser -c "cd /build && makepkg --printsrcinfo > .SRCINFO"
             '
 
           if [ ! -f .SRCINFO ]; then
