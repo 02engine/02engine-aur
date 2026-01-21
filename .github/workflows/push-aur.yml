@@ -32,7 +32,7 @@ jobs:
 
           pkgver="${fullver%%-*}"
 
-          echo "原始 tag:    $tag"
+          echo "原始 tag:      $tag"
           echo "fullver:      $fullver"
           echo "pkgver:       $pkgver"
 
@@ -55,6 +55,7 @@ jobs:
             -w /build \
             archlinux:base-devel \
             bash -c '
+              ls -la &&
               pacman -Syu --noconfirm &&
               pacman -S --noconfirm git base-devel fakeroot sudo &&
               useradd -m -s /bin/bash builduser &&
