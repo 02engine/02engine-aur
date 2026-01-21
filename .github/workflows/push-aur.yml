@@ -1,51 +1,53 @@
 name: Get Tag from desktop and Push to Aur
+
 on:
   repository_dispatch:
-    types: [updata-aur] # 必须匹配 A 发的事件类型
+    types: [updata-aur]
+
 jobs:
   push-to-aur:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 需要历史来创建带文件的 release tag
+          fetch-depth: 0
 
-      - name: Update version-match.txt
+      - name: Update PKGBUILD with pkgver and fullver
         run: |
           tag="${{ github.event.client_payload.tag }}"
-          version="${tag#v}"
-          echo "$version" >> version-match.txt
-
-      - name: Update PKGBUILD
-        run: |
-          version="${{ github.event.client_payload.tag }}"
-          version="${version#v}"
-          sed -i "s/^pkgver=.*/pkgver=$version/" PKGBUILD
+          
+          fullver="${tag#v}"
+          
+          if [[ "$fullver" != *-* ]]; then
+            echo "Error: Tag '$tag' does not contain a commit hash suffix (expected format: vX.Y.Z-xxxxxxxx)"
+            echo "Please ensure the dispatched tag includes a -commit part."
+            exit 1
+          fi
+          
+          pkgver="${fullver%%-*}"
+          
+          echo "Original tag:    $tag"
+          echo "fullver:         $fullver"
+          echo "pkgver:          $pkgver"
+          
+          sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
+          sed -i "s/^fullver=.*/fullver=$fullver/" PKGBUILD
 
       - name: Generate .SRCINFO
         run: |
           docker pull archlinux/archlinux:latest
-          docker run --rm -v "${PWD}":"/pkg" -w "/pkg" archlinux/archlinux:latest /bin/bash -c "pacman -Syu --noconfirm && pacman -S --noconfirm base-devel && makepkg --printsrcinfo > .SRCINFO"
+          docker run --rm -v "${PWD}":"/pkg" -w "/pkg" archlinux/archlinux:latest \
+            /bin/bash -c "pacman -Syu --noconfirm && pacman -S --noconfirm base-devel git && makepkg --printsrcinfo > .SRCINFO"
 
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@master
         with:
-          pkgname: your-package-name  # 替换成你的实际 AUR 包名，例如 yay 或其他
+          pkgname: 02engine-bin
           pkgbuild: ./PKGBUILD
           assets: |
             .SRCINFO
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: Update to ${{ github.event.client_payload.tag }}
+          commit_username:  ${{ secrets.AUR_USERNAME }}
+          commit_email:     ${{ secrets.AUR_EMAIL }}
+          ssh_private_key:  ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message:   Update to ${{ github.event.client_payload.tag }}
           ssh_keyscan_types: rsa,ecdsa,ed25519
-
-      - name: Upload version-match.txt to GitHub Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/assets{?name,label}
-          asset_path: ./version-match.txt
-          asset_name: version-match.txt
-          asset_content_type: text/plain
