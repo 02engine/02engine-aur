@@ -15,33 +15,59 @@ jobs:
       - name: Update PKGBUILD with pkgver and fullver
         run: |
           tag="${{ github.event.client_payload.tag }}"
-          
-          fullver="${tag#v}"
-          
-          if [[ "$fullver" != *-* ]]; then
-            echo "Error: Tag '$tag' does not contain a commit hash suffix (expected format: vX.Y.Z-xxxxxxxx)"
-            echo "Please ensure the dispatched tag includes a -commit part."
+
+          if [[ -z "$tag" ]]; then
+            echo "Error: No tag provided in dispatch payload"
             exit 1
           fi
-          
+
+          fullver="${tag#v}"
+
+          if [[ "$fullver" != *-* ]]; then
+            echo "Error: Tag '$tag' does not contain a commit hash suffix"
+            echo "Expected format: vX.Y.Z-xxxxxxxx"
+            exit 1
+          fi
+
           pkgver="${fullver%%-*}"
-          
+
           echo "Original tag:    $tag"
           echo "fullver:         $fullver"
           echo "pkgver:          $pkgver"
-          
-          sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
-          sed -i "s/^fullver=.*/fullver=$fullver/" PKGBUILD
 
-      - name: Generate .SRCINFO
+          sed -i "s|^pkgver=.*|pkgver=$pkgver|" PKGBUILD
+          sed -i "s|^fullver=.*|fullver=$fullver|" PKGBUILD
+
+          # Debug: 显示更新后的行
+          grep -E "^(pkgver|fullver)=" PKGBUILD || true
+
+      - name: Generate .SRCINFO (as non-root user)
         run: |
           docker pull archlinux/archlinux:latest
-          docker run --rm -v "${PWD}":"/pkg" -w "/pkg" archlinux/archlinux:latest \
-            /bin/bash -c "pacman -Syu --noconfirm && pacman -S --noconfirm base-devel git && makepkg --printsrcinfo > .SRCINFO"
 
-      - name: Show Files
-        run: ls
+          # 在容器内创建一个普通用户（比如 builder），并用它运行 makepkg
+          docker run --rm \
+            -v "${PWD}":"/build" \
+            -w "/build" \
+            --user "$(id -u):$(id -g)" \   # ← 关键：用主机当前用户 UID/GID 运行，避免 root
+            archlinux/archlinux:latest \
+            /bin/bash -c "
+              pacman -Syu --noconfirm &&
+              pacman -S --noconfirm base-devel git fakeroot &&
+              makepkg --printsrcinfo > .SRCINFO
+            "
 
+          # 检查是否生成成功
+          ls -l .SRCINFO || { echo "Error: .SRCINFO not generated"; exit 1; }
+          head -n 15 .SRCINFO  # 打印前几行确认内容
+
+      - name: Show Files (debug)
+        run: |
+          ls -la
+          echo "Current user: $(whoami)"
+          echo "Current dir: $(pwd)"
+
+      # 取消注释后即可正式推送 AUR
       # - name: Publish to AUR
       #   uses: KSXGitHub/github-actions-deploy-aur@master
       #   with:
@@ -49,8 +75,8 @@ jobs:
       #     pkgbuild: ./PKGBUILD
       #     assets: |
       #       .SRCINFO
-      #     commit_username:  ${{ secrets.AUR_USERNAME }}
-      #     commit_email:     ${{ secrets.AUR_EMAIL }}
-      #     ssh_private_key:  ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-      #     commit_message:   Update to ${{ github.event.client_payload.tag }}
+      #     commit_username: ${{ secrets.AUR_USERNAME }}
+      #     commit_email: ${{ secrets.AUR_EMAIL }}
+      #     ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+      #     commit_message: Update to ${{ github.event.client_payload.tag }}
       #     ssh_keyscan_types: rsa,ecdsa,ed25519
