@@ -15,8 +15,6 @@ jobs:
       - name: Update PKGBUILD with pkgver and fullver
         run: |
           tag="${{ github.event.client_payload.tag }}"
-
-          echo "${tag}"
           
           fullver="${tag#v}"
           
