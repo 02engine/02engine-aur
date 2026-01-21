@@ -45,8 +45,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "当前目录：$(pwd)"
-          ls -la
+          echo "主机当前目录：$(pwd)"
+          ls -la  # 确认 PKGBUILD 在主机存在
 
           docker pull archlinux:base-devel
 
@@ -55,17 +55,20 @@ jobs:
             -w /build \
             archlinux:base-devel \
             bash -c '
-              ls -la &&
+              echo "容器内 /build 目录内容："
+              ls -la /build  # 确认挂载成功
+
               pacman -Syu --noconfirm &&
               pacman -S --noconfirm git base-devel fakeroot sudo &&
               useradd -m -s /bin/bash builduser &&
               echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/builduser &&
               chown -R builduser:builduser /build &&
+              cd /build &&  # ← 关键：先 cd 到 /build
               su - builduser -c "makepkg --printsrcinfo > .SRCINFO"
             '
 
           if [ ! -f .SRCINFO ]; then
-            echo "错误：.SRCINFO 未生成！"
+            echo "错误：.SRCINFO 未生成！检查权限或挂载"
             ls -la
             exit 1
           fi
