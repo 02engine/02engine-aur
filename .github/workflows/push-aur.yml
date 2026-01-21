@@ -39,15 +39,18 @@ jobs:
           docker run --rm -v "${PWD}":"/pkg" -w "/pkg" archlinux/archlinux:latest \
             /bin/bash -c "pacman -Syu --noconfirm && pacman -S --noconfirm base-devel git && makepkg --printsrcinfo > .SRCINFO"
 
-      - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@master
-        with:
-          pkgname: 02engine-bin
-          pkgbuild: ./PKGBUILD
-          assets: |
-            .SRCINFO
-          commit_username:  ${{ secrets.AUR_USERNAME }}
-          commit_email:     ${{ secrets.AUR_EMAIL }}
-          ssh_private_key:  ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message:   Update to ${{ github.event.client_payload.tag }}
-          ssh_keyscan_types: rsa,ecdsa,ed25519
+      - name: Show Files
+        run: ls
+
+      # - name: Publish to AUR
+      #   uses: KSXGitHub/github-actions-deploy-aur@master
+      #   with:
+      #     pkgname: 02engine-bin
+      #     pkgbuild: ./PKGBUILD
+      #     assets: |
+      #       .SRCINFO
+      #     commit_username:  ${{ secrets.AUR_USERNAME }}
+      #     commit_email:     ${{ secrets.AUR_EMAIL }}
+      #     ssh_private_key:  ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+      #     commit_message:   Update to ${{ github.event.client_payload.tag }}
+      #     ssh_keyscan_types: rsa,ecdsa,ed25519
