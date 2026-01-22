@@ -75,17 +75,16 @@ jobs:
           ls -l .SRCINFO
           head -n 20 .SRCINFO
 
-      # - name: Publish to AUR
-      #   uses: KSXGitHub/github-actions-deploy-aur@master  # 或指定版本如 @v2.6.0
-      #   with:
-      #     pkgname: 02engine-bin
-      #     pkgbuild: ./PKGBUILD
-      #     assets: |
-      #       .SRCINFO
-      #     commit_username: ${{ secrets.AUR_USERNAME }}
-      #     commit_email: ${{ secrets.AUR_EMAIL }}
-      #     ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-      #     commit_message: Update to ${{ github.event.client_payload.tag }}
-      #     ssh_keyscan_types: rsa,ecdsa,ed25519
-      #     allow_empty_commits: false
-      #     # test: true 
+      - name: Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1 
+        with:
+          pkgname: 02engine-bin
+          pkgbuild: ./PKGBUILD
+          assets: |
+            .SRCINFO
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ github.event.client_payload.tag }}
+          ssh_keyscan_types: rsa,ecdsa,ed25519
+          allow_empty_commits: false
