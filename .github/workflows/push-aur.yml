@@ -1,4 +1,4 @@
-name: Get Tag from desktop and Push to Aur
+name: Get Tag from desktop and Push to AUR
 
 on:
   repository_dispatch:
@@ -13,50 +13,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update PKGBUILD with pkgver and fullver
+      - name: Update PKGBUILD with pkgver
         run: |
           tag="${{ github.event.client_payload.tag }}"
-
           if [[ -z "$tag" ]]; then
             echo "错误：dispatch 事件中没有提供 tag"
             exit 1
           fi
 
-          fullver="${tag#v}"
+          # 移除 v 前缀，得到纯版本号（例如 v1.2.7 → 1.2.7）
+          pkgver="${tag#v}"
 
-          if [[ "$fullver" != *-* ]]; then
-            echo "错误：tag '$tag' 缺少 commit hash 后缀"
-            echo "预期格式：vX.Y.Z-xxxxxxxx"
-            exit 1
-          fi
+          echo "原始 tag: $tag"
+          echo "pkgver: $pkgver"
 
-          pkgver="${fullver%%-*}"
-
-          echo "原始 tag:      $tag"
-          echo "fullver:      $fullver"
-          echo "pkgver:       $pkgver"
-
+          # 只更新 pkgver 行
           sed -i "s|^pkgver=.*|pkgver=$pkgver|" PKGBUILD
-          sed -i "s|^fullver=.*|fullver=$fullver|" PKGBUILD
 
-          grep -E "^(pkgver|fullver)=" PKGBUILD || true
+          echo "更新后的版本信息："
+          grep -E "^(pkgver|pkgrel)=" PKGBUILD || true
 
       - name: Generate .SRCINFO in Arch container
         run: |
           set -euo pipefail
 
-          echo "主机当前目录：$(pwd)"
-          ls -la  # 确认 PKGBUILD 在主机存在
-
           docker pull archlinux:base-devel
-
           docker run --rm \
             -v "$(pwd)":/build \
             -w /build \
             archlinux:base-devel \
             bash -c '
-              echo "容器内 /build 目录内容："
-              ls -la /build  # 确认挂载成功
               pacman -Syu --noconfirm &&
               pacman -S --noconfirm git base-devel fakeroot sudo &&
               useradd -m -s /bin/bash builduser &&
@@ -66,17 +52,16 @@ jobs:
             '
 
           if [ ! -f .SRCINFO ]; then
-            echo "错误：.SRCINFO 未生成！检查权限或挂载"
+            echo "错误：.SRCINFO 未生成！"
             ls -la
             exit 1
           fi
 
-          echo "生成成功："
-          ls -l .SRCINFO
-          head -n 20 .SRCINFO
+          echo ".SRCINFO 生成成功"
+          head -n 15 .SRCINFO
 
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1 
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
           pkgname: 02engine-bin
           pkgbuild: ./PKGBUILD
