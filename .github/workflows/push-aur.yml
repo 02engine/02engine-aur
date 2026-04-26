@@ -29,6 +29,8 @@ jobs:
           echo "pkgver: $pkgver"
           echo "deb 下载地址: $deb_url"
 
+          sed -i "s|^pkgver=.*|pkgver=$pkgver|" PKGBUILD
+
           # 下载 deb 并计算 SHA256
           echo "正在下载 deb 包并计算 SHA256..."
           sha256=$(curl -L -s -f "$deb_url" | sha256sum | awk '{print $1}')
