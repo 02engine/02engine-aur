@@ -13,7 +13,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update PKGBUILD with pkgver
+      - name: Update PKGBUILD with pkgver and sha256
         run: |
           tag="${{ github.event.client_payload.tag }}"
           if [[ -z "$tag" ]]; then
@@ -21,17 +21,33 @@ jobs:
             exit 1
           fi
 
-          # 移除 v 前缀，得到纯版本号（例如 v1.2.7 → 1.2.7）
+          # 提取 pkgver（去掉 v 前缀）
           pkgver="${tag#v}"
+          deb_url="https://github.com/02engine/desktop/releases/download/v${pkgver}/02Engine-linux-amd64-${pkgver}.deb"
 
           echo "原始 tag: $tag"
           echo "pkgver: $pkgver"
+          echo "deb 下载地址: $deb_url"
 
-          # 只更新 pkgver 行
-          sed -i "s|^pkgver=.*|pkgver=$pkgver|" PKGBUILD
+          # 下载 deb 并计算 SHA256
+          echo "正在下载 deb 包并计算 SHA256..."
+          sha256=$(curl -L -s -f "$deb_url" | sha256sum | awk '{print $1}')
 
+          if [[ -z "$sha256" ]]; then
+            echo "错误：无法下载 deb 文件或计算 SHA256"
+            exit 1
+          fi
+
+          echo "计算得到的 SHA256: $sha256"
+
+          # 替换 sha256sums 中的占位符 DEBSSHA
+          sed -i "s|DEBSSHA|$sha256|" PKGBUILD
+
+          echo "PKGBUILD 更新完成"
           echo "更新后的版本信息："
           grep -E "^(pkgver|pkgrel)=" PKGBUILD || true
+          echo "sha256sums:"
+          grep -E "^sha256sums=" -A 2 PKGBUILD || true
 
       - name: Generate .SRCINFO in Arch container
         run: |
@@ -58,7 +74,7 @@ jobs:
           fi
 
           echo ".SRCINFO 生成成功"
-          head -n 15 .SRCINFO
+          head -n 20 .SRCINFO
 
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
