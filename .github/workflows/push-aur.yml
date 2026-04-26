@@ -79,7 +79,7 @@ jobs:
           head -n 20 .SRCINFO
 
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.3
         with:
           pkgname: 02engine-bin
           pkgbuild: ./PKGBUILD
